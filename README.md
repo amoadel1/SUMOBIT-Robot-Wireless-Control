@@ -16,7 +16,7 @@ This project demonstrates a wireless control system for the Cytron SUMOBIT robot
 
 The system uses two BBC micro:bit boards. One micro:bit is connected to the GHBit controller and works as the transmitter, while another micro:bit is connected to the SUMOBIT robot and works as the receiver.
 
-The GHBit controller sends wireless commands using the BBC micro:bit radio communication system. The SUMOBIT robot receives these commands and controls its two DC motors accordingly.
+The GHBit controller reads the joystick input and sends wireless commands through the BBC micro:bit radio communication system. The SUMOBIT robot receives these commands and controls its two DC motors accordingly.
 
 ---
 
@@ -29,7 +29,7 @@ The GHBit controller sends wireless commands using the BBC micro:bit radio commu
 - Right movement
 - Stop command
 - GHBit joystick control
-- Additional GHBit buttons for extra wireless commands
+- Additional GHBit button commands
 - SUMOBIT dual DC motor control
 
 ---
@@ -114,6 +114,7 @@ The joystick is used for the main movement commands:
 - Left → Turn Left
 - Right → Turn Right
 - Center Press → Stop
+- No joystick state → Stop
 
 ![GHBit Wireless Controller](./images/robot_controller.jpg)
 
@@ -141,7 +142,7 @@ Both the transmitter and receiver are configured to use the same radio group.
 
 The BBC micro:bit and GHBit controller were programmed using the MakeCode environment.
 
-The controller continuously reads the joystick direction and sends the corresponding wireless command to the SUMOBIT robot through radio communication.
+The controller reads the joystick direction and sends the corresponding wireless command to the SUMOBIT robot through radio communication.
 
 The robot receives the command and controls both DC motors accordingly.
 
@@ -191,10 +192,10 @@ The following commands are used for robot movement:
 | `C` | Turn Left |
 | `D` | Turn Right |
 | `0` | Stop |
-| `E` | Additional Button Command |
-| `F` | Additional Button Command |
-| `G` | Additional Button Command |
-| `H` | Additional Button Command |
+| `E` | GHBit Button Command |
+| `F` | GHBit Button Command |
+| `G` | GHBit Button Command |
+| `H` | GHBit Button Command |
 
 ---
 
@@ -210,9 +211,54 @@ The receiver uses the following movement logic:
 - `D` → Turn right
 - `0` → Stop both motors
 
-The complete robot receiver code is available here:
+## Complete Robot Receiver Code
 
-[Open SUMOBIT Robot Code](./code/SUMOBIT_Robot_Code.py)
+```python
+def on_received_string_deprecated(receivedString):
+
+    global item
+
+    item = receivedString
+
+    if item.compare("A") == 0:
+
+        sumobit.run_motor(
+            SumobitMotorChannel.BOTH,
+            SumobitMotorDirection.FORWARD,
+            255
+        )
+
+    elif item.compare("B") == 0:
+
+        sumobit.run_motor(
+            SumobitMotorChannel.BOTH,
+            SumobitMotorDirection.BACKWARD,
+            255
+        )
+
+    elif item.compare("C") == 0:
+
+        sumobit.set_motors_speed(-255, 255)
+
+    elif item.compare("D") == 0:
+
+        sumobit.set_motors_speed(255, -255)
+
+    elif item.compare("0") == 0:
+
+        sumobit.set_motors_speed(0, 0)
+
+
+radio.on_received_string_deprecated(on_received_string_deprecated)
+
+item = ""
+
+radio.set_group(1)
+
+radio.set_transmit_power(7)
+
+basic.show_icon(IconNames.HEART)
+```
 
 ---
 
@@ -225,9 +271,75 @@ The radio settings used in the project are:
 - Radio Group: `1`
 - Transmit Power: `7`
 
-The complete GHBit controller code is available here:
+The joystick sends the movement commands `A`, `B`, `C`, `D`, and `0`.
 
-[Open GHBit Controller Code](./code/GHBit_Controller_Code.js)
+The additional GHBit buttons send the commands `E`, `F`, `G`, and `H`.
+
+## Complete GHBit Controller Code
+
+```javascript
+GHBit.onKey(GHBit.enButton.B3, function () {
+    radio.sendString("G")
+})
+
+GHBit.onKey(GHBit.enButton.B1, function () {
+    radio.sendString("E")
+})
+
+GHBit.onKey(GHBit.enButton.B4, function () {
+    radio.sendString("H")
+})
+
+GHBit.onKey(GHBit.enButton.B2, function () {
+    radio.sendString("F")
+})
+
+basic.showIcon(IconNames.Heart)
+
+radio.setGroup(1)
+
+radio.setTransmitPower(7)
+
+basic.forever(function () {
+
+    if (GHBit.Rocker(GHBit.enRocker.Up)) {
+
+        radio.sendString("A")
+
+        basic.showArrow(ArrowNames.North)
+
+    } else if (GHBit.Rocker(GHBit.enRocker.Down)) {
+
+        radio.sendString("B")
+
+        basic.showArrow(ArrowNames.South)
+
+    } else if (GHBit.Rocker(GHBit.enRocker.Left)) {
+
+        radio.sendString("C")
+
+        basic.showArrow(ArrowNames.West)
+
+    } else if (GHBit.Rocker(GHBit.enRocker.Right)) {
+
+        radio.sendString("D")
+
+        basic.showArrow(ArrowNames.East)
+
+    } else if (GHBit.Rocker(GHBit.enRocker.Press)) {
+
+        radio.sendString("0")
+
+        basic.showIcon(IconNames.No)
+
+    } else if (GHBit.Rocker(GHBit.enRocker.Nostate)) {
+
+        radio.sendString("0")
+
+        basic.showIcon(IconNames.No)
+    }
+})
+```
 
 ---
 
@@ -239,7 +351,7 @@ The following hardware is used in this project:
 - BBC micro:bit for the robot
 - BBC micro:bit for the controller
 - GHBit Wireless Controller
-- DC Motors
+- Two DC Motors
 - Motor Driver Board
 - Robot Wheels
 - Battery
@@ -257,9 +369,9 @@ Assemble the SUMOBIT robot by installing the motors, wheels, motor driver board,
 
 ## Step 2: Upload the Robot Code
 
-Upload the receiver code to the BBC micro:bit connected to the SUMOBIT robot.
+Upload the robot receiver code to the BBC micro:bit connected to the SUMOBIT robot.
 
-The robot micro:bit will listen for wireless commands from the controller.
+The robot micro:bit will listen for wireless commands from the GHBit controller.
 
 ---
 
@@ -298,13 +410,11 @@ Use the GHBit joystick to control the robot:
 
 # Project Demonstration
 
-The final system allows the SUMOBIT robot to be controlled wirelessly using the GHBit controller.
+A video demonstration of the SUMOBIT Robot Wireless Control System will be added here.
 
-The controller sends commands through BBC micro:bit radio communication, and the robot responds by controlling its two DC motors.
+**YouTube Video Link:**
 
-![Final SUMOBIT Robot System](./images/completed_robot.jpg)
-
-**Final SUMOBIT Robot Wireless Control System.**
+<!-- Add your YouTube demonstration link here -->
 
 ---
 
